@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Modelo Canvas - Gestión Energética</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #2b5876 0%, #4e4376 100%);
+            padding: 20px;
+            min-height: 100vh;
+            color: #333;
+        }
+        
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.95;
+        }
+        
+        .canvas-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            padding: 10px;
+        }
+        
+        /* CSS Grid Layout Responsivo */
+        .canvas-grid {
+            display: grid;
+            grid-gap: 10px;
+            /* Diseño móvil por defecto (1 columna) */
+            grid-template-columns: 1fr; 
+            grid-template-areas: 
+                "socios"
+                "actividades"
+                "recursos"
+                "propuesta"
+                "relaciones"
+                "canales"
+                "segmentos"
+                "costos"
+                "ingresos";
+        }
+
+        /* Diseño para Desktop (Estilo Canvas Tradicional) */
+        @media (min-width: 1024px) {
+            .canvas-grid {
+                grid-template-columns: repeat(5, 1fr);
+                grid-template-rows: repeat(3, auto);
+                grid-template-areas: 
+                    "socios actividades propuesta relaciones segmentos"
+                    "socios recursos propuesta canales segmentos"
+                    "costos costos . ingresos ingresos";
+                min-height: 700px;
+            }
+            /* Ajuste específico para que Socios, Propuesta y Segmentos ocupen 2 filas visuales */
+            .socios { grid-area: socios; }
+            .actividades { grid-area: actividades; }
+            .recursos { grid-area: recursos; }
+            .propuesta { grid-area: propuesta; }
+            .relaciones { grid-area: relaciones; }
+            .canales { grid-area: canales; }
+            .segmentos { grid-area: segmentos; }
+            .costos { grid-area: costos; grid-column: span 3; } /* Ocupa mitad inferior izquierda */
+            .ingresos { grid-area: ingresos; grid-column: span 2; } /* Ocupa mitad inferior derecha */
+        }
+        
+        .canvas-cell {
+            border: 1px solid #e0e0e0;
+            padding: 20px;
+            background: white;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .canvas-cell:hover {
+            background: #f8f9fa;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            z-index: 2;
+        }
+        
+        .cell-title {
+            font-weight: bold;
+            font-size: 1.2em;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 3px solid;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .cell-content {
+            font-size: 0.9em;
+            line-height: 1.5;
+            flex-grow: 1;
+        }
+        
+        .cell-content ul {
+            list-style: none;
+            padding: 0;
+        }
+        
+        .cell-content li {
+            margin-bottom: 8px;
+            padding-left: 15px;
+            position: relative;
+        }
+        
+        .cell-content li:before {
+            content: "▸";
+            position: absolute;
+            left: 0;
+            font-weight: bold;
+        }
+        
+        .cell-content h4 {
+            color: #444;
+            margin: 15px 0 8px 0;
+            font-size: 0.95em;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        /* Colores Temáticos de Energía */
+        .socios .cell-title { border-color: #2c3e50; color: #2c3e50; }
+        .socios .cell-content li:before { color: #2c3e50; }
+        
+        .actividades .cell-title { border-color: #2980b9; color: #2980b9; }
+        .actividades .cell-content li:before { color: #2980b9; }
+        
+        .propuesta { background: linear-gradient(to bottom right, #eefcf5, #ffffff); }
+        .propuesta .cell-title { border-color: #27ae60; color: #27ae60; } /* Verde Energía */
+        .propuesta .cell-content li:before { color: #27ae60; }
+        
+        .relaciones .cell-title { border-color: #e67e22; color: #e67e22; }
+        .relaciones .cell-content li:before { color: #e67e22; }
+        
+        .segmentos .cell-title { border-color: #8e44ad; color: #8e44ad; }
+        .segmentos .cell-content li:before { color: #8e44ad; }
+        
+        .recursos .cell-title { border-color: #16a085; color: #16a085; }
+        .recursos .cell-content li:before { color: #16a085; }
+        
+        .canales .cell-title { border-color: #c0392b; color: #c0392b; }
+        .canales .cell-content li:before { color: #c0392b; }
+        
+        .costos .cell-title { border-color: #7f8c8d; color: #7f8c8d; }
+        .costos .cell-content li:before { color: #7f8c8d; }
+        
+        .ingresos .cell-title { border-color: #2ecc71; color: #2ecc71; }
+        .ingresos .cell-content li:before { color: #2ecc71; }
+        
+        .icon { font-size: 1.2em; }
+        
+        .info-section {
+            background: white;
+            padding: 30px;
+            margin: 30px auto;
+            max-width: 1400px;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        
+        .info-section h2 { color: #27ae60; margin-bottom: 15px; }
+        .info-section p { line-height: 1.8; color: #555; margin-bottom: 10px; }
+        
+        .highlight {
+            background: #d4efdf;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-weight: 600;
+            color: #145a32;
+        }
+
+        /* Ajustes para Impresión */
+        @media print {
+            body { background: white; padding: 0; }
+            .canvas-container { box-shadow: none; border: none; }
+            .header { color: #333; background: none; padding: 0; margin-bottom: 20px; }
+            .header h1 { text-shadow: none; }
+            .canvas-cell { break-inside: avoid; border: 1px solid #ccc; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>⚡ ENERGESTIÓN - Modelo Canvas</h1>
+        <p><strong>Tecnología en Gestión Eficiente de la Energía</strong></p>
+        <p>Optimizando el consumo energético con IoT e Inteligencia Artificial</p>
+    </div>
+
+    <div class="canvas-container">
+        <div class="canvas-grid">
+            <div class="canvas-cell socios">
+                <div class="cell-title">
+                    <span class="icon">🤝</span> Socios Clave
+                </div>
+                <div class="cell-content">
+                    <h4>🏭 Proveedores Hardware</h4>
+                    <ul>
+                        <li>Fabricantes de sensores IoT (Schneider, Siemens)</li>
+                        <li>Proveedores de Medidores Inteligentes (AMI)</li>
+                    </ul>
+                    
+                    <h4>📜 Reguladores</h4>
+                    <ul>
+                        <li>CREG (Regulación Energía y Gas)</li>
+                        <li>UPME (Planeación Minero Energética)</li>
+                        <li>Operadores de Red (EPM, Air-e, Enel)</li>
+                    </ul>
+                    
+                    <h4>💻 Aliados Tech</h4>
+                    <ul>
+                        <li>Proveedores Cloud (Azure/AWS IoT Core)</li>
+                        <li>Empresas de instalación eléctrica certificada (RETIE)</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="canvas-cell actividades">
+                <div class="cell-title">
+                    <span class="icon">⚙️</span> Actividades Clave
+                </div>
+                <div class="cell-content">
+                    <h4>🔍 Diagnóstico</h4>
+                    <ul>
+                        <li>Auditorías energéticas iniciales</li>
+                        <li>Instalación de telemetría IoT</li>
+                    </ul>
+                    
+                    <h4>📊 Gestión de Datos</h4>
+                    <ul>
+                        <li>Monitoreo de consumo en tiempo real</li>
+                        <li>Análisis predictivo de picos de carga</li>
+                        <li>Detección de fugas o anomalías</li>
+                    </ul>
+                    
+                    <h4>🛠️ Mantenimiento</h4>
+                    <ul>
+                        <li>Actualización de firmware de sensores</li>
+                        <li>Soporte técnico operativo</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="canvas-cell propuesta">
+                <div class="cell-title">
+                    <span class="icon">💎</span> Propuesta de Valor
+                </div>
+                <div class="cell-content">
+                    <h4>🌱 Eficiencia & Ahorro</h4>
+                    <ul>
+                        <li><strong>Reducción de Costos:</strong> Disminución del 15% al 30% en la factura de energía.</li>
+                        <li><strong>Visibilidad Total:</strong> Dashboard en tiempo real del consumo por área/máquina.</li>
+                        <li><strong>Sostenibilidad:</strong> Reducción de la huella de carbono corporativa.</li>
+                    </ul>
+                    
+                    <h4>🚀 Tecnología Diferencial</h4>
+                    <ul>
+                        <li>Alertas automáticas de consumo inusual.</li>
+                        <li>Predicción de demanda con IA para evitar multas por energía reactiva.</li>
+                        <li>Automatización de encendido/apagado inteligente.</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="canvas-cell relaciones">
+                <div class="cell-title">
+                    <span class="icon">❤️</span> Relaciones
+                </div>
+                <div class="cell-content">
+                    <h4>🤝 Consultiva y Cercana</h4>
+                    <ul>
+                        <li>Asignación de un Gestor de Éxito Energético.</li>
+                        <li>Reportes mensuales de ROI y Huella de Carbono.</li>
+                    </ul>
+                    
+                    <h4>🤖 Automatizada</h4>
+                    <ul>
+                        <li>App móvil de autogestión.</li>
+                        <li>Notificaciones push preventivas.</li>
+                        <li>Webinars sobre normativa energética (CREG).</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="canvas-cell segmentos">
+                <div class="cell-title">
+                    <span class="icon">👥</span> Segmentos
+                </div>
+                <div class="cell-content">
+                    <h4>🏭 Sector Industrial</h4>
+                    <ul>
+                        <li>Fábricas con alto consumo (24/7).</li>
+                        <li>Plantas de producción con maquinaria pesada.</li>
+                    </ul>
+                    
+                    <h4>🏢 Edificios Comerciales</h4>
+                    <ul>
+                        <li>Centros Comerciales y Hoteles.</li>
+                        <li>Grandes superficies de Retail.</li>
+                    </ul>
+                    
+                    <h4>🏘️ Propiedad Horizontal</h4>
+                    <ul>
+                        <li>Conjuntos residenciales grandes.</li>
+                        <li>Zonas comunes y bombeo de agua.</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="canvas-cell recursos">
+                <div class="cell-title">
+                    <span class="icon">📦</span> Recursos Clave
+                </div>
+                <div class="cell-content">
+                    <h4>👨‍🔬 Humanos</h4>
+                    <ul>
+                        <li>Ingenieros Eléctricos / Electrónicos.</li>
+                        <li>Científicos de Datos (Data Scientists).</li>
+                        <li>Técnicos instaladores certificados.</li>
+                    </ul>
+                    
+                    <h4>📡 Tecnológicos</h4>
+                    <ul>
+                        <li>Plataforma SaaS de Gestión Energética.</li>
+                        <li>Inventario de dispositivos IoT.</li>
+                        <li>Servidores para Big Data.</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="canvas-cell canales">
+                <div class="cell-title">
+                    <span class="icon">🚚</span> Canales
+                </div>
+                <div class="cell-content">
+                    <h4>📢 Comunicación & Venta</h4>
+                    <ul>
+                        <li>Venta directa B2B (Consultiva).</li>
+                        <li>Sitio web con calculadora de ahorro.</li>
+                        <li>Ferias de tecnología y sostenibilidad.</li>
+                    </ul>
+                    
+                    <h4>🔗 Alianzas</h4>
+                    <ul>
+                        <li>Constructoras (proyectos nuevos).</li>
+                        <li>Empresas de servicios públicos (partnerships).</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="canvas-cell costos">
+                <div class="cell-title">
+                    <span class="icon">💸</span> Estructura de Costos
+                </div>
+                <div class="cell-content">
+                    <h4>📌 Costos Fijos</h4>
+                    <ul>
+                        <li>Nómina de ingeniería y desarrollo ($45M COP/mes).</li>
+                        <li>Infraestructura Cloud y servidores ($8M COP/mes).</li>
+                        <li>Licencias de software y certificaciones.</li>
+                    </ul>
+                    
+                    <h4>📊 Costos Variables</h4>
+                    <ul>
+                        <li>Compra de hardware (sensores, medidores).</li>
+                        <li>Costos de instalación en sitio (viáticos, logística).</li>
+                        <li>Comisiones comerciales.</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="canvas-cell ingresos">
+                <div class="cell-title">
+                    <span class="icon">💰</span> Fuentes de Ingresos
+                </div>
+                <div class="cell-content">
+                    <h4>🔄 Recurrentes (SaaS)</h4>
+                    <ul>
+                        <li><strong>Suscripción Mensual:</strong> Acceso a plataforma de monitoreo ($300K - $2M COP/mes según puntos de medición).</li>
+                        <li><strong>Mantenimiento:</strong> Tarifa anual de soporte.</li>
+                    </ul>
+                    
+                    <h4>💵 Únicos</h4>
+                    <ul>
+                        <li><strong>Setup Fee:</strong> Venta e instalación de hardware IoT.</li>
+                        <li><strong>Consultoría:</strong> Auditorías energéticas específicas.</li>
+                    </ul>
+                    
+                    <h4>📈 Modelo de Éxito</h4>
+                    <ul>
+                        <li>Porcentaje del ahorro generado (Performance contracting).</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="info-section">
+        <h2>📋 Información del Proyecto</h2>
+        <p><strong>Programa de Formación:</strong> Tecnología en Gestión Eficiente de la Energía</p>
+        <p><strong>Competencia:</strong> Desarrollar estrategias de gestión energética según normativa vigente</p>
+        <p><strong>Actividad:</strong> Definición del Modelo de Negocio Sostenible e Inteligente</p>
+        
+        <div style="margin-top: 20px; border-top: 1px solid #eee; padding-top: 20px;">
+            <h2>🎯 Conclusión del Modelo</h2>
+            <p>El modelo de negocio de <strong>ENERGESTIÓN</strong> responde a la necesidad crítica de eficiencia energética en el mercado colombiano actual (tarifas crecientes y regulaciones ambientales). Al integrar IoT e Inteligencia Artificial, no solo vendemos tecnología, sino que vendemos <strong>certidumbre y ahorro operativo</strong>. La estructura financiera mixta (Venta de Hardware + Suscripción SaaS) permite flujo de caja inmediato y sostenibilidad a largo plazo.</p>
+        </div>
+
+        <p style="margin-top: 30px; text-align: center; color: #666; font-size: 0.95em; background: #f4f4f4; padding: 15px; border-radius: 10px;">
+            <strong>Elaborado por:</strong> Narciso Ortiz Ruiz <br>
+            <strong>Fecha:</strong> 24 de Noviembre de 2025 <br>
+            <strong>Ubicación:</strong> Colombia
+        </p>
+    </div>
+</body>
+</html>
